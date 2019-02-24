@@ -1,0 +1,204 @@
+---
+title: "Logistic Regression: Loan Prediction"
+output: html_notebook
+---
+
+
+# Load the desired packages
+library(tidyverse)
+library(caTools)
+library(rms)
+
+# Read in the datasets
+loan_train <- read_csv('train.csv')
+loan_test <- read_csv('test.csv')
+
+# Take a look at the data with glimpse() 
+glimpse(loan_train)
+glimpse(loan_test)
+summary(loan_train)
+summary(loan_test)
+
+# Make sure the data types are the same in both sets
+loan_all <- plyr::rbind.fill(loan_train, loan_test)
+
+glimpse(loan_all)
+summary(loan_all)
+
+loan_all$CoapplicantIncome <- as.integer(loan_all$CoapplicantIncome)
+loan_all$LoanAmount <- as.integer(loan_all$LoanAmount)
+loan_all$Loan_Amount_Term <- as.integer(loan_all$Loan_Amount_Term)
+loan_all$Credit_History <- as.character(loan_all$Credit_History)
+
+# Check the outcome
+glimpse(loan_all)
+
+# Take care of missing data
+summary(loan_all)
+
+# Used these to check for missing values
+
+lapply(loan_all, function(x) unique(is.na(x)))
+
+# loan_train %>%
+#    group_by(Loan_Status) %>%
+#    count()
+    
+# sum(is.na(loan_all$ApplicantIncome))
+
+
+# Making NA's Female.  There is already an imbalance in Male:Female ratio.  Adding more males may skew even further.  The ratio seems to be mostly unaffected with the addition of females        
+loan_all$Gender <- ifelse(is.na(loan_all$Gender), 
+                          'Female',
+                          loan_all$Gender)
+
+# Make NA's Yes.  Following the mode as an indicator here.
+loan_all$Married <- ifelse(is.na(loan_all$Married), 
+                           'Yes',
+                           loan_all$Married)
+
+# Again using Mode
+loan_all$Dependents <- ifelse(is.na(loan_all$Dependents), 
+                           '0',
+                           loan_all$Dependents)
+                           
+# Using Mode for Self_Employed
+loan_all$Self_Employed <- ifelse(is.na(loan_all$Self_Employed), 
+                          'No',
+                          loan_all$Self_Employed)
+                           
+# Using the mean loan amount
+loan_all$LoanAmount <- ifelse(is.na(loan_all$LoanAmount), 
+                               ave(loan_all$LoanAmount, FUN = function(x) mean(x, na.rm
+                               = TRUE)),
+                               loan_all$LoanAmount)
+                               
+# Using median term
+loan_all$Loan_Amount_Term <- ifelse(is.na(loan_all$Loan_Amount_Term), 
+                               ave(loan_all$Loan_Amount_Term, FUN = function(x) median(x, na.rm = TRUE)),
+                               loan_all$Loan_Amount_Term)
+                               
+                               
+# I am making an assumption that if an applicant needs a Co-Signer then they have no credit history                         
+loan_all$Credit_History <- ifelse(is.na(loan_all$Credit_History) & loan_all$CoapplicantIncome > 0, 0,
+                             loan_all$Credit_History)
+    
+loan_all$Credit_History <- ifelse(is.na(loan_all$Credit_History) & loan_all$CoapplicantIncome == 0, 1,
+                             loan_all$Credit_History)
+
+
+# Check the outcome
+summary(loan_all)
+
+sum(is.na(loan_all)) 
+
+# Factor categorical data
+loan_all$Gender <- factor(loan_all$Gender,
+                          levels = c('Male', 'Female'),
+                          labels = c(1, 2))
+                          
+loan_all$Married <- factor(loan_all$Married,
+                          levels = c('Yes', 'No'),
+                          labels = c(1, 2))
+                          
+loan_all$Dependents <- factor(loan_all$Dependents,
+                          levels = c('0', '1', '2', '3+'),
+                          labels = c(1, 2, 3, 4))
+                          
+loan_all$Education <- factor(loan_all$Education,
+                          levels = c('Graduate', 'Not Graduate'),
+                          labels = c(1, 2))
+                          
+loan_all$Self_Employed <- factor(loan_all$Self_Employed,
+                          levels = c('Yes', 'No'),
+                          labels = c(1, 2))
+                          
+loan_all$Credit_History <- factor(loan_all$Credit_History,
+                           levels = c('0', '1'),
+                           labels = c(1, 2))
+                           
+loan_all$Property_Area <- factor(loan_all$Property_Area,
+                          levels = c('Rural', 'Urban', 'Semiurban'),
+                          labels = c(1, 2, 3))
+
+# Scale the desired variables
+loan_all[, 7:10] <- scale(loan_all[, 7:10])
+
+#Check the outcome
+summary(loan_all)
+
+# Re-Seperate in train and test
+loan_train <- loan_all %>%
+                filter(Loan_Status == 'Y' | Loan_Status == 'N') 
+
+loan_test <- loan_all %>%
+                setdiff(loan_train) %>%
+                select(1:12)
+                
+# Change Loan_Status to binary
+loan_train$Loan_Status <- ifelse(loan_train$Loan_Status == 'Y', 1, 0)
+
+# Check the outcome                
+glimpse(loan_train)
+glimpse(loan_test)
+
+summary(loan_train)
+summary(loan_test)
+
+sum(is.na(loan_train))
+sum(is.na(loan_test))
+
+
+# I want to do a Logistic analysis on a small subset of the data where I can verify how the model performs.
+# Split loan_train so we can build the model and test it on verifiable data
+set.seed(123)
+split <- sample.split(loan_train$Loan_Status, SplitRatio = 0.75)
+sub_train <- subset(loan_train, split == TRUE)
+sub_test <- subset(loan_train, split == FALSE)
+
+# Build the Logistic Regression model
+sub_classifier <- glm(formula = Loan_Status ~ Married +
+                                          Credit_History +
+                                          Property_Area,
+                                          family = 'binomial', data = sub_train)
+
+# Check the model
+summary(sub_classifier)
+
+# Check to see if any of the variables are superficially affecting each other
+vif(sub_classifier)
+
+# Use the model to make predictions
+status_pred <- predict(sub_classifier, newdata = select(sub_test, -Loan_Status))
+y_status_sub_pred <- ifelse(status_pred >= 0.5, 1, 0)
+
+cm <- table(sub_test$Loan_Status, y_status_sub_pred)
+cm
+
+# Everything is ready for our regression analysis
+# Conduct backwards elimination of the non-statistically significant variables
+classifier <- glm(formula = Loan_Status ~ Married +
+                                          Credit_History +
+                                          Property_Area,
+                                          family = 'binomial', data = loan_train)
+summary(classifier)
+
+vif(classifier)
+
+# Predict the loan outcome
+prob_pred <- predict(classifier, type = 'response', newdata = loan_test)
+y_pred <- ifelse(prob_pred >= 0.5, 1, 0)
+
+# Create a new data frame with the relevant variable 'Loan_ID' and 'y_pred' which I will rename 'Loan_Status'.
+loan_pred <- tibble(Loan_ID = loan_test$Loan_ID, Loan_Status = as.integer(y_pred))
+
+# Check
+head(loan_pred)
+glimpse(loan_pred)
+
+# Write the outcome to a .csv file
+write.csv(loan_pred, 'loan_pred.csv', row.names = FALSE)
+
+
+
+
