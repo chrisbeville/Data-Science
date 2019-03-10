@@ -1,0 +1,91 @@
+---
+title: "NLP - Random Forest and Bag of Words"
+output: html_notebook
+---
+
+## Natural Language Processing
+
+## Load the libraries
+library(tidyverse)
+library(tm)
+library(SnowballC)
+library(caTools)
+library(randomForest)
+
+## Load the data
+data <- read_tsv('Restaurant_Reviews.tsv')
+head(data, n = 10)
+
+## Clean/sort the text
+
+## Create Corpus
+corpus <- VCorpus(VectorSource(data$Review))
+as.character(corpus[[1]])
+
+## Change all text to lower case
+corpus <- tm_map(corpus, content_transformer(tolower))
+as.character(corpus[[1]])
+
+## Remove numbers from text
+as.character(corpus[[841]])
+corpus <- tm_map(corpus, removeNumbers)
+as.character(corpus[[841]])
+
+## Remove punctuation
+corpus <- tm_map(corpus, removePunctuation)
+as.character(corpus[[1]])
+
+## Remove non-relevant words
+corpus <- tm_map(corpus, removeWords, stopwords())
+as.character(corpus[[1]])
+
+## Stem the text
+corpus <- tm_map(corpus, stemDocument)
+as.character(corpus[[1]])
+
+## Remove unwanted white space
+corpus <- tm_map(corpus, stripWhitespace)
+as.character(corpus[[1]])
+
+
+## Create the 'Bag of Words' model
+dtm <- DocumentTermMatrix(corpus)
+dtm
+
+## Remove Sparse Terms
+dtm <- removeSparseTerms(dtm, 0.999)
+dtm
+
+## Convert 'dtm' to dataframe
+dataset <- as.data.frame(as.matrix(dtm))
+
+
+## Add dependent variable
+dataset$Liked <- data$Liked
+
+## Prepare the 'dataset' dataframe for Random Forest analysis
+dataset$Liked <- factor(dataset$Liked,
+                        levels = c(0, 1))
+ 
+## Set seed for reproducibility         
+set.seed(123)               
+
+## Set the split ratio for the train and test sets
+split <- sample.split(dataset$Liked, SplitRatio = 0.8)
+
+## Create Sets
+train <- subset(dataset, split == TRUE)
+test <- subset(dataset, split == FALSE)
+
+## Create Random Forest Model
+classifier <- randomForest(x = train[-692],
+                           y = train$Liked,
+                           ntree = 10)
+
+## Predict positive or negative on test set                           
+y_pred <- predict(classifier, newdata = test[-692])
+
+## Create confusion matrix to visualize model performance
+cm <- table(test$Liked, y_pred)
+cm
+
