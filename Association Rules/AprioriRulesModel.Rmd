@@ -1,0 +1,39 @@
+---
+title: "Apriori Rules Model"
+author: "Christopher C. Beville"
+date: "March 11, 2019"
+output: html_document
+---
+
+## Load the libraries
+library(tidyverse)
+library(arules)
+
+## Load the data
+data <- read.csv('Market_Basket_Optimisation.csv', header = FALSE)
+glimpse(data)
+
+## Create sparse matrix
+data <- read.transactions('Market_Basket_Optimisation.csv', sep = ',',
+                          rm.duplicates = TRUE)
+summary(data)
+
+## Visualize frequency of top 50 products
+itemFrequencyPlot(data, topN = 50)
+
+## Train Apriori model
+## support = desired min num of purchases of a single item per day 
+##           * num of days 
+##           / total transactions
+## confidence = (default = 0.8)
+rules <- apriori(data, parameter = list(support = 0.003, confidence = 0.2))
+
+## Visualizing the results
+inspect(sort(rules, by = 'lift')[1:10])
+
+
+
+
+
+
+
