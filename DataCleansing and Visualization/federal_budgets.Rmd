@@ -1,0 +1,182 @@
+---
+title: "Treemap Visualizations with US Government Data"
+subtitle: "Credit to Thomas Mock 'https://github.com/jthomasmock' for the data used in this analysis."
+author: "Christopher C. Beville"
+output: html_notebook
+---
+
+
+
+## Load Libraries
+library(tidyverse)
+library(treemapify)
+library(reshape2)
+
+## Load Data
+data_rnd <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-12/fed_r_d_spending.csv")
+
+data_climate <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-12/climate_spending.csv")
+
+data_energy <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-02-12/energy_spending.csv")
+
+## Shape Data for analysis and visualization
+data_rnd <- data_rnd %>%
+              mutate(spending_group = "RnD Spending") %>%
+              select(department, year, total_outlays, spending_group) %>%
+              rename(spending = total_outlays)
+
+data_climate <- data_climate %>%
+                  mutate(spending_group = "Climate Spending") %>%
+                  rename(spending = gcc_spending)
+                  
+data_energy <- data_energy %>%
+                  mutate(spending_group = "Energy Spending") %>%
+                  rename(spending = energy_spending)
+
+glimpse(data_rnd)
+glimpse(data_climate)
+glimpse(data_energy)
+
+
+
+## Spending number were the same for all departments in the RnD Data Set.  I Looked up the actual RnD Spending for each department and recoded the spending amounts for each department.
+
+## 2017
+data_rnd$spending[data_rnd$department == "DHS" & data_rnd$year == 2017] <- 724000000
+data_rnd$spending[data_rnd$department == "DOC" & data_rnd$year == 2017] <- 1794000000
+data_rnd$spending[data_rnd$department == "DOD" & data_rnd$year == 2017] <- 49197000000
+data_rnd$spending[data_rnd$department == "DOE" & data_rnd$year == 2017] <- 254000000
+data_rnd$spending[data_rnd$department == "DOT" & data_rnd$year == 2017] <- 904000000
+data_rnd$spending[data_rnd$department == "EPA" & data_rnd$year == 2017] <- 497000000
+data_rnd$spending[data_rnd$department == "HHS" & data_rnd$year == 2017] <- 34222000000
+data_rnd$spending[data_rnd$department == "Interior" & data_rnd$year == 2017] <- 953000000
+data_rnd$spending[data_rnd$department == "NASA" & data_rnd$year == 2017] <- 10704000000
+data_rnd$spending[data_rnd$department == "NIH" & data_rnd$year == 2017] <- 32881000000
+data_rnd$spending[data_rnd$department == "NSF" & data_rnd$year == 2017] <- 5938000000
+data_rnd$spending[data_rnd$department == "Other" & data_rnd$year == 2017] <- 463000000
+data_rnd$spending[data_rnd$department == "USDA" & data_rnd$year == 2017] <- 2585000000
+data_rnd$spending[data_rnd$department == "VA" & data_rnd$year == 2017] <- 1346000000
+
+
+
+## Create New records for RnD
+department <- c("Energy")
+year <- 2017
+spending <- 14896000000
+spending_group <- "RnD Spending"
+data_rnd_append <- data.frame(department, year, spending, spending_group)
+
+## Append New RnD Records
+data_rnd <- rbind(data_rnd, data_rnd_append)
+
+## Create master Data Frame
+data_all <- rbind(data_rnd, data_climate, data_energy)
+
+## Remove star character from some department names
+data_all$department <- str_remove(data_all$department, "\\*")
+View(data_all)
+
+## Create Data Frames for Treemaps
+data_all_2017 <- data_all %>%
+                    filter(year == 2017)   
+                    
+data_all_2016 <- data_all %>%
+                    filter(year == 2016) 
+                    
+data_all_2015 <- data_all %>%
+                    filter(year == 2015) 
+
+
+
+## Tree Maps Energy Spending: 2015, 2016, 2017   
+data_all_2015 %>%
+  filter(spending_group == "Energy Spending") %>%
+  ggplot(aes(area = spending, fill = department, label = department)) +
+  geom_treemap() +
+  geom_treemap_text(aes(fontface = "bold", alpha = 10)) +
+  geom_treemap_text(aes(label = paste(as.character(round(spending / 1000000000, 2)), "Billion") , alpha = 10), 
+                    place = "bottomleft", padding.x = unit(3, "mm"), padding.y = unit(3, "mm")) +
+  theme(plot.title = element_text(face = "bold", size = 20),
+        legend.title = element_text(face = "bold")) +
+  labs(title = "Energy Spending: 2015",
+        fill = "Department")
+        
+data_all_2016 %>%
+  filter(spending_group == "Energy Spending") %>%
+  ggplot(aes(area = spending, fill = department, label = department)) +
+  geom_treemap() +
+  geom_treemap_text(aes(fontface = "bold", alpha = 10)) +
+  geom_treemap_text(aes(label = paste(as.character(round(spending / 1000000000, 2)), "Billion") , alpha = 10), 
+                    place = "bottomleft", padding.x = unit(3, "mm"), padding.y = unit(3, "mm")) +
+  theme(plot.title = element_text(face = "bold", size = 20),
+        legend.title = element_text(face = "bold")) +
+  labs(title = "Energy Spending: 2016",
+        fill = "Department")
+          
+
+data_all_2017 %>%
+  filter(spending_group == "Energy Spending") %>%
+  ggplot(aes(area = spending, fill = department, label = department)) +
+  geom_treemap() +
+  geom_treemap_text(aes(fontface = "bold", alpha = 10)) +
+  geom_treemap_text(aes(label = paste(as.character(round(spending / 1000000000, 2)), "Billion") , alpha = 10), 
+                    place = "bottomleft", padding.x = unit(3, "mm"), padding.y = unit(3, "mm")) +
+  theme(plot.title = element_text(face = "bold", size = 20),
+        legend.title = element_text(face = "bold")) +
+  labs(title = "Energy Spending: 2017",
+        fill = "Department")
+
+
+
+## Tree Maps Climate Spending: 2015, 2016, 2017
+data_all_2015 %>%
+  filter(spending_group == "Climate Spending") %>%
+  ggplot(aes(area = spending, fill = department, label = department)) +
+  geom_treemap() +
+  geom_treemap_text(aes(fontface = "bold", alpha = 10)) +
+  geom_treemap_text(aes(label = paste(as.character(round(spending / 1000000000, 2)), "Billion") , alpha = 10), 
+                    place = "bottomleft", padding.x = unit(3, "mm"), padding.y = unit(3, "mm")) +
+  theme(plot.title = element_text(face = "bold", size = 20),
+        legend.title = element_text(face = "bold")) +
+  labs(title = "Climate Spending: 2015",
+        fill = "Department")
+        
+data_all_2016 %>%
+  filter(spending_group == "Climate Spending") %>%
+  ggplot(aes(area = spending, fill = department, label = department)) +
+  geom_treemap() +
+  geom_treemap_text(aes(fontface = "bold", alpha = 10)) +
+  geom_treemap_text(aes(label = paste(as.character(round(spending / 1000000000, 2)), "Billion") , alpha = 10), 
+                    place = "bottomleft", padding.x = unit(3, "mm"), padding.y = unit(3, "mm")) +
+  theme(plot.title = element_text(face = "bold", size = 20),
+        legend.title = element_text(face = "bold")) +
+  labs(title = "Climate Spending: 2016",
+        fill = "Department")
+          
+data_all_2017 %>%
+  filter(spending_group == "Climate Spending") %>%
+  ggplot(aes(area = spending, fill = department, label = department)) +
+  geom_treemap() +
+  geom_treemap_text(aes(fontface = "bold", alpha = 10)) +
+  geom_treemap_text(aes(label = paste(as.character(round(spending / 1000000000, 2)), "Billion") , alpha = 10), 
+                    place = "bottomleft", padding.x = unit(3, "mm"), padding.y = unit(3, "mm")) +
+  theme(plot.title = element_text(face = "bold", size = 20),
+        legend.title = element_text(face = "bold")) +
+  labs(title = "Climate Spending: 2017",
+        fill = "Department")  
+
+
+  
+
+## RnD Spending Tree Maps: 2017
+data_all_2017 %>%
+  filter(spending_group == "RnD Spending") %>%
+  ggplot(aes(area = spending, fill = department, label = department)) +
+  geom_treemap() +
+  geom_treemap_text(aes(fontface = "bold", alpha = 10)) +
+  geom_treemap_text(aes(label = paste(as.character(round(spending / 1000000000, 2)), "Billion") , alpha = 10), 
+                    place = "bottomleft", padding.x = unit(3, "mm"), padding.y = unit(3, "mm")) +
+  theme(plot.title = element_text(face = "bold", size = 20),
+        legend.title = element_text(face = "bold")) +
+  labs(title = "RnD Spending: 2017",
+        fill = "Department")  
